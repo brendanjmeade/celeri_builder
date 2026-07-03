@@ -61,7 +61,10 @@ def build(app) -> None:
             model_value=("inspector_tab",),
             density="compact",
             show_arrows=True,
-            classes="inspector-tabs flex-grow-0",
+            # flex-shrink-0 keeps the tab strip at its natural height: without
+            # it, a tall panel body shrinks BOTH flex children and crushes the
+            # tabs to a few pixels, so they can't be scrolled to or clicked.
+            classes="inspector-tabs flex-grow-0 flex-shrink-0",
         ):
             for name, label in TABS:
                 v3.VTab(

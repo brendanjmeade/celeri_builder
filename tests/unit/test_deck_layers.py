@@ -32,6 +32,7 @@ ALL_GROUPS = {
     "velocities",
     "vertices",
     "blocks",
+    "overlay",  # M2 selection/lasso overlay (empty with no selection)
 }
 
 
@@ -125,6 +126,7 @@ def test_build_all_returns_every_group(scene, doc):
         "velocities",
         "vertices",
         "blocks",
+        "overlay",
     ]
 
 

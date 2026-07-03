@@ -20,6 +20,7 @@ from celeri_builder.deck.layers import (
     graticule,
     meshes,
     segments,
+    selection,
     velocities,
     vertices,
 )
@@ -93,6 +94,7 @@ def register_all() -> SceneBuilder:
         velocities,
         vertices,
         blocks,
+        selection,
     ):
         scene.register(module.GROUP, module.ORDER, module.build)
     return scene

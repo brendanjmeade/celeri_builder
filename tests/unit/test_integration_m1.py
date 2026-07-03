@@ -45,6 +45,7 @@ def test_scene_builds_all_groups_from_real_project(example_project):
         "velocities",
         "vertices",
         "blocks",
+        "overlay",  # M2 selection/lasso overlay (empty with no selection)
     }
     assert set(built) == expected_groups
     assert set(scene.group_names()) == expected_groups

@@ -172,3 +172,28 @@ DEFAULT_VELOCITY: dict[str, float | str] = {
 def read_default(field: str):
     """Default used when a known column is missing from a file on read."""
     return "" if field == "name" else 0
+
+
+# -- editor field metadata -----------------------------------------------------
+#
+# Fields hidden from property editors (celeri_ui ``ignoreFields`` parity).
+
+# SegmentsPanel.tsx: endpoint coordinates are edited on the map, and
+# start/end are the vertex graph's internal ids.
+SEGMENT_HIDDEN_FIELDS: tuple[str, ...] = (
+    "lon1",
+    "lat1",
+    "lon2",
+    "lat2",
+    "start",
+    "end",
+)
+
+# CommandPanel.tsx: file-reference keys are managed by open/save handling.
+COMMAND_HIDDEN_FIELDS: tuple[str, ...] = (
+    "segment_file_name",
+    "station_file_name",
+    "block_file_name",
+    "mesh_parameters_file_name",
+    "file_name",
+)

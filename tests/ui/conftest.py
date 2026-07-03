@@ -25,14 +25,17 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture(scope="session")
-def japan_project(tmp_path_factory) -> Path:
-    """Copy the japan input tree into a session tmp dir; returns its root."""
+@pytest.fixture
+def japan_project(tmp_path) -> Path:
+    """Copy the japan input tree into a per-test tmp dir; returns its root.
+
+    Function-scoped so each test gets a clean app + files (save tests mutate
+    the tree, and the trame server keeps process state across page reloads)."""
     if not DATA_DIR.exists():
         pytest.skip(f"example data dir not found: {DATA_DIR}")
-    root = tmp_path_factory.mktemp("japan_project")
+    root = tmp_path / "japan_project"
     for sub in ("config", "segment", "block", "station", "mogi"):
-        (root / sub).mkdir()
+        (root / sub).mkdir(parents=True)
         for f in (DATA_DIR / sub).glob("japan_*"):
             shutil.copy(f, root / sub / f.name)
     (root / "mesh").mkdir()
@@ -42,9 +45,11 @@ def japan_project(tmp_path_factory) -> Path:
     return root
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def app_server(japan_project):
-    """Start celeri-builder headless on a free port in testing mode."""
+    """Start celeri-builder headless on a free port in testing mode.
+
+    Function-scoped: a fresh server per test isolates process state."""
     port = _free_port()
     env = {
         **os.environ,

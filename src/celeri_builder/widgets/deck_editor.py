@@ -23,9 +23,11 @@ class DeckEditor(AbstractElement):
         if self.server:
             self.server.enable_module(module)
         if groups:
-            expr = "[].concat(" + ", ".join(
-                f"(deck_layers_{g} || [])" for g in groups
-            ) + ")"
+            expr = (
+                "[].concat("
+                + ", ".join(f"(deck_layers_{g} || [])" for g in groups)
+                + ")"
+            )
             self._attributes["layers"] = f':layers="{expr}"'
         else:
             self._attr_names += [("layers", ":layers")]

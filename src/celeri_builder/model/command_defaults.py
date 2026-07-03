@@ -1,0 +1,77 @@
+"""Default command (config) values.
+
+Ported VERBATIM from celeri_ui ``src/State/Command/Command.ts``
+``defaultCommand`` — same keys, same order, same values, including the
+misspelled key ``locking_depth_overide_value`` (sic — celeri parity).
+
+Integer-valued JS numbers are ported as Python ints so JSON output
+matches ``JSON.stringify`` (``0`` not ``0.0``, ``30000000000`` not
+``3e10``). Treat this dict as a read-only template: copy (deep for the
+list values) before mutating.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+DEFAULT_COMMAND: dict[str, Any] = {
+    "file_name": "Default Command",
+    "reuse_elastic": "no",
+    "reuse_elastic_file": "./celeri_elastic_operators.hdf5",
+    "save_elastic": "yes",
+    "save_elastic_file": "./celeri_elastic_operators.hdf5",
+    "material_lambda": 30_000_000_000,
+    "material_mu": 30_000_000_000,
+    "unit_sigmas": "no",
+    "locking_depth_flag2": 0,
+    "locking_depth_flag3": 0,
+    "locking_depth_flag4": 0,
+    "locking_depth_flag5": 0,
+    "locking_depth_override_flag": "no",
+    "locking_depth_overide_value": 0,  # (sic) misspelling preserved
+    "apriori_block_name": "",
+    "tri_smooth": 10_000,
+    "pmag_tri_smooth": 0,
+    "smooth_type": 1,
+    "n_iterations": 1,
+    "tri_edge": [0, 0, 0],
+    "tri_depth_tolerance": 0,
+    "tri_con_weight": 1,
+    "strain_method": 0,
+    "sar_file_name": "",
+    "sar_ramp": 0,
+    "sar_weight": 0,
+    "tri_slip_constraint_type": 0,
+    "inversion_type": "standard",
+    "inversion_param01": 0,
+    "inversion_param02": 0,
+    "inversion_param03": 0,
+    "inversion_param04": 0,
+    "inversion_param05": 0,
+    "save_all": "yes",
+    "mogi_file_name": "",
+    "solution_method": "backslash",
+    "ridge_param": 0,
+    "tri_full_coupling": "no",
+    "tvr_lambda": 1,
+    "tri_slip_sign": [0, 0],
+    "n_eigs": 0,
+    "segment_file_name": "",
+    "station_file_name": "",
+    "block_file_name": "",
+    "mesh_parameters_file_name": "",
+    "fault_resolution": 1,
+    "station_data_weight": 1,
+    "station_data_weight_min": 1,
+    "station_data_weight_max": 1,
+    "station_data_weight_steps": 1,
+    "slip_constraint_weight": 1,
+    "slip_constraint_weight_min": 1,
+    "slip_constraint_weight_max": 1,
+    "slip_constraint_weight_steps": 1,
+    "block_constraint_weight": 1,
+    "block_constraint_weight_min": 1,
+    "block_constraint_weight_max": 1,
+    "block_constraint_weight_steps": 1,
+    "slip_file_names": "",
+}

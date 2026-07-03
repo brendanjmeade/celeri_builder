@@ -47,9 +47,11 @@ class FileExplorer:
 
     # -- handlers -------------------------------------------------------------
     def _list_dir(self, path: Path):
+        # ``root`` is only the initial directory; navigation is unrestricted
+        # across the local filesystem (the trame server runs on the user's
+        # own machine). The filesystem root ('/') bounds the "up" button
+        # naturally since Path('/').parent == Path('/').
         path = path.resolve()
-        if self.root not in (*path.parents, path):
-            path = self.root
         ext = self.app.state.fx_filter
         entries = []
         try:

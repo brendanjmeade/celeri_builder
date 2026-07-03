@@ -23,6 +23,7 @@ from collections.abc import Callable
 from typing import Any
 
 from celeri_builder.deck.primitives import SHIFT_SUFFIX
+from celeri_builder.geo.polygon import points_in_polygon
 from celeri_builder.model.vertex_graph import normalize_lon, vertex_key
 
 #: Pickable base layer id -> entity kind (celeri_ui Setup*Sources click map).
@@ -49,6 +50,16 @@ ARM_MODES = ("mapClick", "override")
 
 #: Enter closes a lasso only when the polygon has >2 points (App.tsx:320).
 LASSO_CLOSE_MIN_POINTS = 3
+
+#: Active edit_mode -> the entity kind a lasso selects (App.tsx:322-357). The
+#: velocity edit mode is spelled ``velocities`` but selects the ``velocity``
+#: kind (celeri_ui EditMode vs the selection kind).
+LASSO_KINDS: dict[str, str] = {
+    "block": "block",
+    "velocities": "velocity",
+    "vertex": "vertex",
+    "segment": "segment",
+}
 
 LonLat = list[float]
 
@@ -203,12 +214,76 @@ class MapController:
         self._set_state(selection_mode="normal", lasso_points=[], mode_hint="")
 
     def close_lasso(self, polygon: list[LonLat]) -> None:
-        """Enter on a >2-point lasso polygon.
+        """Enter on a >2-point lasso polygon (App.tsx:320-367).
 
-        TODO(M4): point-in-polygon over the active edit mode's candidates
-        (block interiors / velocity stations / vertices / segment MIDPOINTS,
-        App.tsx:320-367) then select the hits via ``app.select``.
+        Point-in-polygon over the active edit mode's candidate points — block
+        interiors / velocity stations / all vertices / segment MIDPOINTS — then
+        select the enclosed entities via ``app.select`` (which switches the
+        inspector tab). Zero hits selects the empty set for that kind (celeri_ui
+        calls ``select`` with the hit list unconditionally). A polygon with too
+        few points does nothing.
         """
+        if len(polygon) < LASSO_CLOSE_MIN_POINTS:
+            return
+        candidates = self._lasso_candidates(self.app.state.edit_mode)
+        if candidates is None:
+            return
+        kind, ids, points = candidates
+        # Normalize the polygon to the same 0-360 frame as the candidates so a
+        # western-hemisphere lasso tests against western-hemisphere points.
+        ring = [[normalize_lon(float(p[0])), float(p[1])] for p in polygon]
+        mask = points_in_polygon(points, ring)
+        hits = [ident for ident, inside in zip(ids, mask, strict=True) if inside]
+        self.app.select(kind, hits)
+
+    def _lasso_candidates(
+        self, edit_mode: str
+    ) -> tuple[str, list, list[LonLat]] | None:
+        """(select kind, candidate ids, candidate points) for the edit mode.
+
+        Points are normalized to 0-360 to match the (normalized) polygon.
+        Returns ``None`` for an unknown edit mode (celeri_ui's default branch
+        just returns to normal without selecting).
+        """
+        kind = LASSO_KINDS.get(edit_mode)
+        if kind is None:
+            return None
+        doc = self.app.doc
+        if kind == "block":
+            rows = doc.blocks
+            ids = list(range(len(rows)))
+            points = [
+                [
+                    normalize_lon(float(row.get("interior_lon", 0.0))),
+                    float(row.get("interior_lat", 0.0)),
+                ]
+                for row in rows
+            ]
+        elif kind == "velocity":
+            rows = doc.velocities
+            ids = list(range(len(rows)))
+            points = [
+                [normalize_lon(float(row.get("lon", 0.0))), float(row.get("lat", 0.0))]
+                for row in rows
+            ]
+        elif kind == "vertex":
+            ids = list(doc.segments.vertices)
+            points = [[lon, lat] for lon, lat in doc.segments.vertices.values()]
+        else:  # segment: candidate is the segment MIDPOINT (App.tsx:346-356)
+            expanded = doc.segments.expand_rows()
+            ids = list(range(len(expanded)))
+            points = [
+                [
+                    (
+                        normalize_lon(float(row["lon1"]))
+                        + normalize_lon(float(row["lon2"]))
+                    )
+                    / 2,
+                    (float(row["lat1"]) + float(row["lat2"])) / 2,
+                ]
+                for row in expanded
+            ]
+        return kind, ids, points
 
     # -- per-mode click handlers ----------------------------------------------
 

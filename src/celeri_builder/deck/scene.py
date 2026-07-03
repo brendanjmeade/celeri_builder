@@ -18,6 +18,7 @@ from celeri_builder.deck.layers import (
     dip_projection,
     generic,
     graticule,
+    labels,
     meshes,
     segments,
     selection,
@@ -94,6 +95,7 @@ def register_all() -> SceneBuilder:
         velocities,
         vertices,
         blocks,
+        labels,
         selection,
     ):
         scene.register(module.GROUP, module.ORDER, module.build)

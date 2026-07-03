@@ -62,6 +62,7 @@ GROUPS = (
     "blocks",
     "velocities",
     "vertices",
+    "labels",
     "overlay",
 )
 
@@ -76,11 +77,12 @@ KIND_TABS = {
     "velocity": "velocities",
 }
 
-#: file/dirty kind -> scene layer groups it invalidates.
+#: file/dirty kind -> scene layer groups it invalidates. ``labels`` re-syncs
+#: with the entity groups so a plottableKey text follows its entity's edits.
 KIND_GROUPS: dict[str, tuple[str, ...]] = {
-    "segment": ("segments", "dip_projection", "vertices", "overlay"),
-    "block": ("blocks", "overlay"),
-    "station": ("velocities", "overlay"),
+    "segment": ("segments", "dip_projection", "vertices", "labels", "overlay"),
+    "block": ("blocks", "labels", "overlay"),
+    "station": ("velocities", "labels", "overlay"),
     "command": (),
     "mesh": ("meshes",),
     "mesh_params": ("meshes",),
@@ -344,6 +346,7 @@ class CeleriBuilderApp(TrameApp):
                 "mode": state.edit_mode,
                 "selection_mode": state.selection_mode,
                 "mode_hint": state.mode_hint,
+                "lasso_points": [list(p) for p in (state.lasso_points or [])],
                 "drag_layers": list(state.deck_drag_layers or []),
                 "segment_names": [s.get("name") for s in graph.segments],
                 "dirty": sorted(state.dirty_kinds),
@@ -973,10 +976,10 @@ class CeleriBuilderApp(TrameApp):
     # -- display / mode handlers -----------------------------------------------
 
     PANEL_GROUPS: ClassVar[dict[str, tuple[str, ...]]] = {
-        "segment": ("segments", "dip_projection", "overlay"),
+        "segment": ("segments", "dip_projection", "labels", "overlay"),
         "vertex": ("vertices", "overlay"),
-        "block": ("blocks", "overlay"),
-        "velocity": ("velocities", "overlay"),
+        "block": ("blocks", "labels", "overlay"),
+        "velocity": ("velocities", "labels", "overlay"),
         "mesh": ("meshes",),
         "generic": ("generic",),
         "grid": ("graticule",),

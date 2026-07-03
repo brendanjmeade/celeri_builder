@@ -32,6 +32,7 @@ ALL_GROUPS = {
     "velocities",
     "vertices",
     "blocks",
+    "labels",  # M4 plottableKey text (empty with no plotted value chosen)
     "overlay",  # M2 selection/lasso overlay (empty with no selection)
 }
 
@@ -126,6 +127,7 @@ def test_build_all_returns_every_group(scene, doc):
         "velocities",
         "vertices",
         "blocks",
+        "labels",
         "overlay",
     ]
 
@@ -296,7 +298,10 @@ def test_generic_layer_and_missing_keys_skip(scene, doc):
 def test_blocks_have_name_tooltips(scene, doc):
     (descriptor,) = scene.build_all(doc, default_display())["blocks"]
     assert descriptor["pickable"] is True
-    assert [row["tooltip"] for row in descriptor["data"]] == ["block_a", "block_b"]
+    tooltips = [row["tooltip"] for row in descriptor["data"]]
+    assert all(t.startswith("<strong>") for t in tooltips)
+    assert "block_a" in tooltips[0]
+    assert "block_b" in tooltips[1]
 
 
 def test_hex_to_rgba():

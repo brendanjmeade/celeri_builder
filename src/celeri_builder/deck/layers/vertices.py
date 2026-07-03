@@ -21,7 +21,15 @@ def build(doc: Document, display: dict, selection: dict) -> list[dict]:  # noqa:
     if settings["hide"]:
         return []
     rows = [
-        {"id": vertex_id, "lon": lon, "lat": lat}
+        {
+            "id": vertex_id,
+            "lon": lon,
+            "lat": lat,
+            "tooltip": (
+                f"<strong>vertex {vertex_id}</strong>"
+                f"<br/>lon: {lon:.6f}<br/>lat: {lat:.6f}"
+            ),
+        }
         for vertex_id, (lon, lat) in doc.segments.vertices.items()
     ]
     return scatter_descriptors(

@@ -45,6 +45,7 @@ def test_scene_builds_all_groups_from_real_project(example_project):
         "velocities",
         "vertices",
         "blocks",
+        "labels",  # M4 plottableKey text (empty with no plotted value chosen)
         "overlay",  # M2 selection/lasso overlay (empty with no selection)
     }
     assert set(built) == expected_groups

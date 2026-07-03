@@ -18,14 +18,18 @@ def build(doc: Document, display: dict, selection: dict) -> list[dict]:  # noqa:
         return []
     rows = []
     for index, block in enumerate(doc.blocks):
-        name = str(block.get("name", ""))
+        name = str(block.get("name", "")).strip()
+        lon = normalize_lon(float(block.get("interior_lon", 0.0)))
+        lat = float(block.get("interior_lat", 0.0))
         rows.append(
             {
                 "index": index,
                 "name": name,
-                "tooltip": name,
-                "lon": normalize_lon(float(block.get("interior_lon", 0.0))),
-                "lat": float(block.get("interior_lat", 0.0)),
+                "tooltip": (
+                    f"<strong>{name}</strong><br/>interior: {lon:.3f}, {lat:.3f}"
+                ),
+                "lon": lon,
+                "lat": lat,
             }
         )
     return scatter_descriptors(

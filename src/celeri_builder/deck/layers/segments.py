@@ -44,6 +44,14 @@ def shortest_line_coordinates(
     return (a_lon, a_lat), (b_lon, b_lat)
 
 
+def _tooltip(seg: dict) -> str:
+    """Row hover HTML (name + the facts celeri_ui shows in the segment popup)."""
+    name = seg.get("name", "")
+    dip = seg.get("dip", "")
+    locking_depth = seg.get("locking_depth", "")
+    return f"<strong>{name}</strong><br/>dip: {dip}<br/>locking_depth: {locking_depth}"
+
+
 def build(doc: Document, display: dict, selection: dict) -> list[dict]:  # noqa: ARG001
     settings = display["segment"]
     if settings["hide"]:
@@ -57,6 +65,7 @@ def build(doc: Document, display: dict, selection: dict) -> list[dict]:  # noqa:
             {
                 "index": index,
                 "name": seg.get("name", ""),
+                "tooltip": _tooltip(seg),
                 "slon": slon,
                 "slat": slat,
                 "tlon": tlon,

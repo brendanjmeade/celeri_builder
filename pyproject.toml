@@ -1,0 +1,132 @@
+[project]
+name = "celeri_builder"
+version = "0.1.0"
+description = "Interactive map editor for celeri kinematic earthquake cycle model inputs"
+authors = [
+    {name = "Brendan Meade", email = "brendanjmeade@gmail.com"},
+]
+dependencies = [
+    "trame>=3.13.2,<4",
+    "trame-vuetify>=3.2.2,<4",
+    "trame-dataclass>=2.0.6,<3",
+    "python-dotenv",
+    "numpy",
+    "pandas<3",
+    "platformdirs",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT License"}
+keywords = ["Python", "Interactive", "Web", "Application", "Earthquake", "Geodesy"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+app = [
+    "pywebview",
+]
+dev = [
+    "pre-commit",
+    "ruff",
+    "pytest >=6",
+    "pytest-cov >=3",
+    "nox",
+]
+test = [
+    "pytest >=6",
+    "pytest-cov >=3",
+    "playwright",
+    "pytest-playwright",
+    "pytest-xprocess",
+    "pixelmatch",
+    "matplotlib",
+]
+
+[project.scripts]
+celeri-builder = "celeri_builder.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = [
+  "/src/celeri_builder/**/*.py",
+  "/src/celeri_builder/**/*.js",
+  "/src/celeri_builder/**/*.css",
+  "/src/celeri_builder/**/*.json",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/celeri_builder",
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = ["-ra", "-m", "not ui and not parity"]
+testpaths = ["tests"]
+markers = [
+    "ui: browser-driven UI tests (needs playwright + chromium)",
+    "parity: side-by-side comparison against celeri_ui (local only)",
+    "slow: slow tests",
+]
+
+[tool.ruff]
+extend-exclude = ["src/celeri_builder/widgets/module/serve"]
+
+[tool.ruff.lint]
+extend-select = [
+    "ARG", # flake8-unused-arguments
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "EM",  # flake8-errmsg
+    "EXE", # flake8-executable
+    "G",   # flake8-logging-format
+    "I",   # isort
+    "ICN", # flake8-import-conventions
+    "NPY", # NumPy specific rules
+    "PD",  # pandas-vet
+    "PGH", # pygrep-hooks
+    "PIE", # flake8-pie
+    "PL",  # pylint
+    "PT",  # flake8-pytest-style
+    "PTH", # flake8-use-pathlib
+    "RET", # flake8-return
+    "RUF", # Ruff-specific
+    "SIM", # flake8-simplify
+    "T20", # flake8-print
+    "UP",  # pyupgrade
+    "YTT", # flake8-2020
+]
+ignore = [
+    "PLR09",   # Too many <...>
+    "PLR2004", # Magic value used in comparison
+    "ISC001",  # Conflicts with formatter
+]
+isort.required-imports = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["T20"]
+"noxfile.py" = ["T20"]
+"src/**" = ["SIM117"]
+"spike/**" = ["T20"]
+
+[tool.semantic_release]
+version_toml = [
+    "pyproject.toml:project.version",
+]
+version_variables = [
+    "src/celeri_builder/__init__.py:__version__",
+]
+
+[tool.semantic_release.publish]
+dist_glob_patterns = ["dist/*"]
+upload_to_vcs_release = true

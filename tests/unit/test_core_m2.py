@@ -302,14 +302,23 @@ def test_lasso_click_and_escape(app):
     assert app.state.lasso_points == []
 
 
-def test_arm_stubs_set_mode_and_hint(app):
+def test_arm_new_and_vertex_op_set_mode_and_hint(app):
     app.arm_new("segment")
     assert app.state.selection_mode == "mapClick"
     assert "segment" in app.state.mode_hint
     app.controller.cancel()
     assert app.state.selection_mode == "normal"
+
+    # vertex ops require a single selected vertex (else no-op)
+    app.arm_vertex_op("merge")
+    assert app.state.selection_mode == "normal"  # nothing selected: no-op
+
+    _make_two_segments(app)
+    vid = next(iter(app.doc.segments.vertices))
+    app.select("vertex", [vid])
     app.arm_vertex_op("merge")
     assert app.state.selection_mode == "override"
+    app.controller.cancel()
     app.arm_vertex_op("extrude")
     assert app.state.selection_mode == "mapClick"
 

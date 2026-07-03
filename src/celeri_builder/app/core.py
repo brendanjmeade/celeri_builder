@@ -113,12 +113,30 @@ SELECTION_SCHEMA: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "velocity": (VELOCITY_FIELDS, ()),
 }
 
-#: M3 stubs: vertex op -> the selection mode it will arm.
-VERTEX_OP_MODES = {"merge": "override", "bridge": "override", "extrude": "mapClick"}
+#: Active edit mode -> the layer(s) the widget lets the user drag. Segments
+#: mode drags the shared vertices layer (celeri_ui SetupDrawnPointSource).
+EDIT_MODE_DRAG_LAYERS: dict[str, list[str]] = {
+    "vertex": ["vertices"],
+    "segment": ["vertices"],
+    "block": ["blocks"],
+    "velocities": ["velocities"],
+}
+
+#: Drag/commit kind -> the file kind its Move* action makes dirty.
+MOVE_DIRTY = {"vertex": "segment", "block": "block", "velocity": "station"}
+
+#: New-entity mapClick flows: kind -> the file kind CreateX makes dirty.
+CREATE_DIRTY = {"segment": "segment", "block": "block", "velocity": "station"}
+
 VERTEX_OP_HINTS = {
     "merge": "Merge: click the vertex to merge into",
     "bridge": "Bridge: click the vertex to connect to",
     "extrude": "Extrude: click the target location",
+}
+NEW_ENTITY_HINTS = {
+    "segment": "New segment: click the start point",
+    "block": "New block: click a location inside the block",
+    "velocity": "New velocity: click the station location",
 }
 
 #: Numeric property edits commit after 1 s of quiet (celeri_ui parity).
@@ -193,13 +211,13 @@ class CeleriBuilderApp(TrameApp):
         )
         state.deck_view_state = dict(TEST_VIEW if self.testing else DEFAULT_VIEW)
         state.deck_view_state_rev = 0
-        state.deck_drag_layers = []
         state.deck_cursor_mode = "normal"
         state.folder_label = ""
         state.dirty_kinds = []
         state.can_undo = False
         state.can_redo = False
         state.edit_mode = "vertex"
+        state.deck_drag_layers = list(EDIT_MODE_DRAG_LAYERS.get("vertex", []))
         state.selection_mode = "normal"
         state.mode_hint = ""
         state.hover_lonlat = None
@@ -215,10 +233,10 @@ class CeleriBuilderApp(TrameApp):
 
         state.change("lasso_points")(self._on_lasso_points)
         state.change("selection_mode")(self._on_selection_mode)
+        # The active edit mode decides which layer the widget lets us drag.
+        state.change("edit_mode")(self._on_edit_mode)
         # inspector_tab/inspector_open change client-side (tab-strip JS).
-        state.change("edit_mode", "inspector_tab", "inspector_open")(
-            self._on_probe_keys
-        )
+        state.change("inspector_tab", "inspector_open")(self._on_probe_keys)
 
         if self.server.hot_reload:
             self.server.controller.on_server_reload.add(self._build_ui)
@@ -325,6 +343,9 @@ class CeleriBuilderApp(TrameApp):
                 },
                 "mode": state.edit_mode,
                 "selection_mode": state.selection_mode,
+                "mode_hint": state.mode_hint,
+                "drag_layers": list(state.deck_drag_layers or []),
+                "segment_names": [s.get("name") for s in graph.segments],
                 "dirty": sorted(state.dirty_kinds),
                 "selection": {
                     "kind": selection.get("kind"),
@@ -464,13 +485,34 @@ class CeleriBuilderApp(TrameApp):
         coerced = _coerce(value, self._selection_template(kind, ids, key))
         if coerced is _SKIP:
             return
+        if self._selection_field_unchanged(kind, ids, key, coerced):
+            return  # value echo (e.g. an input re-emitting on render): no-op
         self._stage_edit(("selection", kind, ids), key, coerced)
 
     def edit_command(self, key: str, value):
-        coerced = _coerce(value, self.doc.command.get(key))
-        if coerced is _SKIP:
-            return
+        current = self.doc.command.get(key)
+        coerced = _coerce(value, current)
+        if coerced is _SKIP or coerced == current:
+            return  # unchanged value: don't stage a no-op edit
         self._stage_edit(("command",), key, coerced)
+
+    def _selection_field_unchanged(self, kind: str, ids, key: str, coerced) -> bool:
+        """True when every selected entity already holds ``coerced`` for ``key``.
+
+        Selecting an entity renders its inspector inputs, which can re-emit
+        their current value; committing that as an Edit*/Move* would be a
+        no-op that still lands as an undo entry, so it is dropped here.
+        """
+        if kind == "vertex":
+            lonlat = self.doc.segments.vertices.get(ids[0])
+            if lonlat is None:
+                return False
+            return (lonlat[0] if key == "lon" else lonlat[1]) == coerced
+        rows = self._rows(kind)
+        selected = [rows[i] for i in ids if 0 <= i < len(rows)]
+        return bool(selected) and all(
+            row.get(key, _MISSING) == coerced for row in selected
+        )
 
     def _selection_template(self, kind: str, ids, key: str):
         if kind == "vertex":
@@ -581,23 +623,146 @@ class CeleriBuilderApp(TrameApp):
             dirty=("segment",),
         )
 
-    # -- M3 stubs: creation / vertex-op arming ----------------------------------
+    # -- geometry editing: drag / creation / vertex ops -------------------------
+
+    def commit_move(self, kind: str, ident: int, lon: float, lat: float):
+        """Commit a drag as ONE undoable Move* action (dragend only).
+
+        ``kind`` is vertex/block/velocity, ``ident`` the vertex id (already
+        resolved from the row) or the block/velocity row index. A vertex move
+        auto-merges in the reducer when it lands on an occupied cell.
+        """
+        self.flush_pending_edits()
+        dirty = MOVE_DIRTY.get(kind)
+        if dirty is None:
+            return
+        action: act.Action
+        if kind == "vertex":
+            action = act.MoveVertex(vertex_id=ident, lon=lon, lat=lat)
+        elif kind == "block":
+            action = act.MoveBlock(index=ident, lon=lon, lat=lat)
+        else:
+            action = act.MoveVelocity(index=ident, lon=lon, lat=lat)
+        self.dispatch(action, dirty=(dirty,))
 
     def arm_new(self, kind: str):
-        """Arm the new-entity mapClick flow (M3 supplies the callback)."""
-        with self.state as state:
-            state.selection_mode = "mapClick"
-            state.mode_hint = f"Click the map to place the new {kind}"
-        self._update_probe()
+        """Arm a new-entity mapClick flow (SegmentsPanel / BlockPanel / ...).
+
+        Segment creation takes TWO clicks (start then end); block and velocity
+        take one. The mapClick callback receives a normalized ``[lon, lat]``.
+        """
+        self.flush_pending_edits()
+        if kind == "segment":
+            self._arm_segment_start()
+        elif kind in ("block", "velocity"):
+            self.controller.arm(
+                "mapClick",
+                {"label": f"New {kind}"},
+                lambda coord, kind=kind: self._place_entity(kind, coord),
+            )
+            self._set_mode_hint(NEW_ENTITY_HINTS[kind])
+
+    def _arm_segment_start(self):
+        self.controller.arm(
+            "mapClick", {"label": "New Segment"}, self._segment_start_click
+        )
+        self._set_mode_hint(NEW_ENTITY_HINTS["segment"])
+
+    def _segment_start_click(self, coordinate):
+        start = (coordinate[0], coordinate[1])
+        # Re-arm for the second click, remembering the start point.
+        self.controller.arm(
+            "mapClick",
+            {"label": "New Segment"},
+            lambda coord, start=start: self._segment_end_click(start, coord),
+        )
+        self._set_mode_hint("New segment: click the end point")
+
+    def _segment_end_click(self, start, coordinate):
+        end = (coordinate[0], coordinate[1])
+        self.controller.cancel()
+        self.dispatch(
+            act.CreateSegment(start=start, end=end, props={}), dirty=("segment",)
+        )
+
+    def _place_entity(self, kind: str, coordinate):
+        self.controller.cancel()
+        lon, lat = coordinate[0], coordinate[1]
+        if kind == "block":
+            action: act.Action = act.CreateBlock(
+                props={"interior_lon": lon, "interior_lat": lat}
+            )
+        else:
+            action = act.CreateVelocity(props={"lon": lon, "lat": lat})
+        self.dispatch(action, dirty=(CREATE_DIRTY[kind],))
 
     def arm_vertex_op(self, op: str):
-        """Arm merge/bridge/extrude (M3 supplies the callback)."""
-        mode = VERTEX_OP_MODES.get(op)
-        if mode is None:
+        """Arm merge/bridge/extrude — each needs a single selected vertex.
+
+        Merge/bridge arm 'override' and route the SECOND picked vertex to the
+        op; extrude arms 'mapClick' and takes the target coordinate. With no
+        single vertex selected the call is a no-op (a hint, no crash).
+        """
+        self.flush_pending_edits()
+        keep = self._selected_single_vertex()
+        if keep is None:
+            self._set_mode_hint("Select a single vertex first")
             return
+        if op == "extrude":
+            self.controller.arm(
+                "mapClick",
+                {"label": "Extrude"},
+                lambda coord, vid=keep: self._do_extrude(vid, coord),
+            )
+        elif op == "merge":
+            self.controller.arm(
+                "override",
+                {"label": "Merge", "kind": "vertex"},
+                lambda ids, vid=keep: self._do_merge(vid, ids),
+            )
+        elif op == "bridge":
+            self.controller.arm(
+                "override",
+                {"label": "Bridge", "kind": "vertex"},
+                lambda ids, vid=keep: self._do_bridge(vid, ids),
+            )
+        else:
+            return
+        self._set_mode_hint(VERTEX_OP_HINTS[op])
+
+    def _selected_single_vertex(self) -> int | None:
+        selection = self.state.selection or {}
+        if selection.get("kind") != "vertex":
+            return None
+        ids = list(selection.get("ids") or [])
+        return ids[0] if len(ids) == 1 else None
+
+    def _do_extrude(self, vertex_id: int, coordinate):
+        self.controller.cancel()
+        self.dispatch(
+            act.ExtrudeSegment(
+                vertex_id=vertex_id, target=(coordinate[0], coordinate[1])
+            ),
+            dirty=("segment",),
+        )
+
+    def _do_merge(self, keep: int, picked_ids):
+        self.controller.cancel()
+        remove = picked_ids[0] if picked_ids else None
+        if remove is None:
+            return
+        self.dispatch(act.MergeVertices(keep=keep, remove=remove), dirty=("segment",))
+
+    def _do_bridge(self, a: int, picked_ids):
+        self.controller.cancel()
+        b = picked_ids[0] if picked_ids else None
+        if b is None:
+            return
+        self.dispatch(act.BridgeVertices(a=a, b=b), dirty=("segment",))
+
+    def _set_mode_hint(self, text: str):
         with self.state as state:
-            state.selection_mode = mode
-            state.mode_hint = VERTEX_OP_HINTS[op]
+            state.mode_hint = text
         self._update_probe()
 
     # -- mesh / generic collection handlers --------------------------------------
@@ -879,6 +1044,16 @@ class CeleriBuilderApp(TrameApp):
             self.state.mode_hint = ""
         self._update_probe()
 
+    def _on_edit_mode(self, **_):
+        self._sync_drag_layers()
+        self._update_probe()
+
+    def _sync_drag_layers(self):
+        """Mirror the active edit mode into the widget's draggable-layer set."""
+        layers = list(EDIT_MODE_DRAG_LAYERS.get(self.state.edit_mode, []))
+        if list(self.state.deck_drag_layers or []) != layers:
+            self.state.deck_drag_layers = layers
+
     def _on_probe_keys(self, **_):
         self._update_probe()
 
@@ -915,6 +1090,16 @@ class CeleriBuilderApp(TrameApp):
                 "zoom": event.get("zoom"),
             }
 
+    def on_map_dragstart(self, event):
+        self.controller.handle_dragstart(event or {})
+
+    def on_map_drag(self, event):
+        self.controller.handle_drag(event or {})
+
+    def on_map_dragend(self, event):
+        self.controller.handle_dragend(event or {})
+        self._update_probe()
+
     def on_map_key(self, event):
         self.controller.handle_key(event or {})
         self._update_probe()
@@ -937,6 +1122,9 @@ class CeleriBuilderApp(TrameApp):
                     cursor_mode=("deck_cursor_mode",),
                     click=(self.on_map_click, "[$event]"),
                     hover=(self.on_map_hover, "[$event]"),
+                    dragstart=(self.on_map_dragstart, "[$event]"),
+                    drag=(self.on_map_drag, "[$event]"),
+                    dragend=(self.on_map_dragend, "[$event]"),
                     viewstate=(self.on_map_viewstate, "[$event]"),
                     mapkey=(self.on_map_key, "[$event]"),
                 )

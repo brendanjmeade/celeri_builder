@@ -227,6 +227,9 @@ def build_field_rows(source: str, edit, hidden: tuple[str, ...] = ()) -> None:
                     v_if="typeof value === 'number'",
                     model_value=("value",),
                     update_modelValue=(edit, "[field, $event]"),
+                    # precision=null: never round (its default of 0 would clamp
+                    # lon/lat/decimal fields to integers on display + echo).
+                    precision=("null",),
                     density="compact",
                     hide_details=True,
                     variant="outlined",

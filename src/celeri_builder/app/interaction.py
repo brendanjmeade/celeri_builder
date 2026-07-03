@@ -23,11 +23,19 @@ from collections.abc import Callable
 from typing import Any
 
 from celeri_builder.deck.primitives import SHIFT_SUFFIX
-from celeri_builder.model.vertex_graph import normalize_lon
+from celeri_builder.model.vertex_graph import normalize_lon, vertex_key
 
 #: Pickable base layer id -> entity kind (celeri_ui Setup*Sources click map).
 LAYER_KINDS: dict[str, str] = {
     "segments_hit": "segment",
+    "vertices": "vertex",
+    "blocks": "block",
+    "velocities": "velocity",
+}
+
+#: Draggable base layer id -> entity kind (dragend -> Move* action). Segments
+#: mode drags the shared 'vertices' layer, so both map to the vertex kind.
+DRAG_LAYER_KINDS: dict[str, str] = {
     "vertices": "vertex",
     "blocks": "block",
     "velocities": "velocity",
@@ -88,11 +96,10 @@ class MapController:
             "mapClick": self._click_armed_map_click,
             "override": self._click_armed_override,
         }
-        # M3 slots in here: per-edit_mode drag tables
-        # (handle_dragstart/drag/dragend -> MoveVertex/Block/Velocity), the
-        # segment two-click + block/velocity one-click creation flows via
-        # arm("mapClick", ...), and merge/bridge/extrude via arm("override"/
-        # "mapClick", ...).
+        # Drag routing (handle_dragstart/drag/dragend) sits beside the click
+        # table; the creation flows (segment two-click, block/velocity
+        # one-click) and merge/bridge/extrude vertex ops are armed by the app
+        # (arm_new / arm_vertex_op) through arm("mapClick"/"override", ...).
 
     # -- introspection ------------------------------------------------------
 
@@ -120,6 +127,50 @@ class MapController:
                 self.close_lasso(points)
             self.cancel()
 
+    # -- drag routing (active edit mode's entity, MoveVertex/Block/Velocity) --
+
+    def handle_dragstart(self, event: dict) -> None:
+        """Drag begins on a draggable feature.
+
+        The widget ghosts the point locally at 60 fps, so the server side is a
+        no-op here (celeri_ui commits the move only on drop). Kept as an entry
+        point for symmetry / future hover-readout wiring.
+        """
+
+    def handle_drag(self, event: dict) -> None:
+        """Intermediate drag samples — no-op server side (client ghost)."""
+
+    def handle_dragend(self, event: dict) -> None:
+        """Drop: commit ONE Move* action for the dragged entity.
+
+        ``layerId`` is the base layer id (``vertices`` / ``blocks`` /
+        ``velocities``); ``index`` is the row index in that layer (mapped back
+        to a sparse vertex id for the vertices layer). The final coordinate is
+        normalized to 0-360 before it reaches the reducer.
+
+        A drop that never left the feature's cell is a click, not a drag
+        (deck.gl can fire a zero-movement dragstart/dragend when the pointer
+        is already over a draggable point) — such no-op moves are skipped so
+        they never land as a spurious undo entry.
+        """
+        event = event or {}
+        coordinate = self._coordinate(event)
+        if coordinate is None:
+            return
+        start = event.get("startCoordinate")
+        if start and vertex_key(
+            normalize_lon(float(start[0])), float(start[1])
+        ) == vertex_key(coordinate[0], coordinate[1]):
+            return
+        kind = DRAG_LAYER_KINDS.get(str(event.get("layerId") or ""))
+        index = event.get("index")
+        if kind is None or index is None or int(index) < 0:
+            return
+        ident = self._vertex_id_at_row(int(index)) if kind == "vertex" else int(index)
+        if ident is None:
+            return
+        self.app.commit_move(kind, ident, coordinate[0], coordinate[1])
+
     # -- mode arming (creation / merge / bridge flows land in M3) -------------
 
     def arm(self, mode: str, payload: dict | None, callback: Callable) -> None:
@@ -142,9 +193,14 @@ class MapController:
         self._set_state(selection_mode=mode)
 
     def cancel(self) -> None:
-        """Escape: back to 'normal', drop the lasso polygon + armed callback."""
+        """Escape: back to 'normal', drop the lasso polygon + armed callback.
+
+        Clears the mode banner hint explicitly (the app also mirrors this in a
+        ``selection_mode`` change watcher, but that only fires under a running
+        server; clearing here keeps the headless engine deterministic).
+        """
         self._armed = None
-        self._set_state(selection_mode="normal", lasso_points=[])
+        self._set_state(selection_mode="normal", lasso_points=[], mode_hint="")
 
     def close_lasso(self, polygon: list[LonLat]) -> None:
         """Enter on a >2-point lasso polygon.

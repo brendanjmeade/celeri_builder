@@ -9,6 +9,8 @@ Edit fault segments (a shared-vertex graph), blocks, station velocities, and
 model configuration on a deck.gl map, and round-trip the celeri input files
 losslessly.
 
+![celeri_builder editing the Japan model](docs/screenshot.png)
+
 ## Installation
 
 ```console

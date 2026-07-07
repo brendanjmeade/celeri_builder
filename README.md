@@ -1,8 +1,8 @@
 # celeri_builder
 
-Interactive map editor for [celeri](https://github.com/brendanjmeade/celeri)
-kinematic earthquake cycle model inputs — a Python/[Trame](https://kitware.github.io/trame/)
-+ [deck.gl](https://deck.gl/) rewrite of
+- Interactive editor for [celeri](https://github.com/brendanjmeade/celeri)
+kinematic earthquake cycle model inputs
+- A Python/[Trame](https://kitware.github.io/trame/)/[deck.gl](https://deck.gl/) rewrite of
 [celeri_ui](https://github.com/brendanjmeade/celeri_ui).
 
 ![celeri_builder editing the Japan model](docs/screenshot.png)

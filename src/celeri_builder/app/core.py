@@ -164,10 +164,10 @@ def _coerce(value: Any, template: Any) -> Any:
         if isinstance(value, str):
             return value.strip().lower() in ("1", "true", "yes", "on")
         return bool(value)
-    if isinstance(template, (int, float)):
+    if isinstance(template, int | float):
         if value is None or isinstance(value, bool):
             return _SKIP
-        if isinstance(value, (int, float)):
+        if isinstance(value, int | float):
             number = float(value)
         else:
             try:
@@ -177,7 +177,7 @@ def _coerce(value: Any, template: Any) -> Any:
         if isinstance(template, int) and number.is_integer():
             return int(number)
         return number
-    if isinstance(template, (list, dict)):
+    if isinstance(template, list | dict):
         return _SKIP
     if isinstance(template, str):
         return str(value)
@@ -537,7 +537,7 @@ class CeleriBuilderApp(TrameApp):
                 state.selection_fields = {**(state.selection_fields or {}), key: value}
             else:
                 state.command_fields = {**(state.command_fields or {}), key: value}
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if isinstance(value, int | float) and not isinstance(value, bool):
             self._schedule_edit_flush()
         else:
             self.flush_pending_edits()
@@ -818,11 +818,11 @@ class CeleriBuilderApp(TrameApp):
         self._update_probe()
 
     def mark_dirty(self, *kinds: str):
-        savable = set(kinds) & set(project_io.SAVABLE_KINDS)
-        if not savable:
+        saveable = set(kinds) & set(project_io.SAVABLE_KINDS)
+        if not saveable:
             return
         with self.state as state:
-            state.dirty_kinds = sorted(set(state.dirty_kinds) | savable)
+            state.dirty_kinds = sorted(set(state.dirty_kinds) | saveable)
 
     # -- per-kind open / save (inspector panel file buttons) ----------------------
 

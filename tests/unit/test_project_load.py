@@ -30,7 +30,7 @@ def _assert_rows_equal(rows_a, rows_b):
         for key, value_a in row_a.items():
             value_b = row_b[key]
             numeric = all(
-                isinstance(v, (int, float)) and not isinstance(v, bool)
+                isinstance(v, int | float) and not isinstance(v, bool)
                 for v in (value_a, value_b)
             )
             if numeric:

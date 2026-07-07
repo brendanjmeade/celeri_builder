@@ -84,7 +84,7 @@ NORMALIZATIONS: dict[str, dict] = {
 def _num(value):
     if isinstance(value, bool):
         return float(value)
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return float(value)
     try:
         return float(value)

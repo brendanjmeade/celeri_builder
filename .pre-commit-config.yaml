@@ -25,6 +25,7 @@ repos:
       - id: mixed-line-ending
       - id: name-tests-test
         args: ["--pytest-test-first"]
+        exclude: ^tests/(ui/helpers|parity/(drive_builder|drive_celeri_ui|edit_scripts))\.py$
       - id: trailing-whitespace
 
   - repo: https://github.com/rbubley/mirrors-prettier

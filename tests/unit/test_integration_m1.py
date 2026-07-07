@@ -18,7 +18,7 @@ TOL = 1e-6
 
 
 def _values_close(a: object, b: object) -> bool:
-    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+    if isinstance(a, int | float) and isinstance(b, int | float):
         if isinstance(a, bool) or isinstance(b, bool):
             return a == b
         return math.isclose(float(a), float(b), rel_tol=0.0, abs_tol=TOL)

@@ -105,7 +105,7 @@ class SpikeApp(TrameApp):
     def on_dragstart(self, event):
         self._update_probe(last_dragstart=event)
 
-    def on_drag(self, event):
+    def on_drag(self, _event):
         self._counters["drag"] += 1
         self._update_probe(n_drag=self._counters["drag"])
 

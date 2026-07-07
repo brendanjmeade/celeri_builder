@@ -57,7 +57,7 @@ def wait_probe(page, pred, timeout=10.0, poll=0.1):
             last = read_probe(page)
             if pred(last):
                 return last
-        except Exception:  # noqa: BLE001 - probe may be mid-render
+        except Exception:
             pass
         time.sleep(poll)
     return last if last and pred(last) else None
@@ -138,9 +138,7 @@ def main():
             t0 = time.time()
             steps = 50
             for i in range(steps):
-                page.mouse.move(
-                    box["x"] + 100 + i * 8, box["y"] + 300 + (i % 7) * 4
-                )
+                page.mouse.move(box["x"] + 100 + i * 8, box["y"] + 300 + (i % 7) * 4)
                 page.wait_for_timeout(20)  # ~1 s of continuous movement
             elapsed = time.time() - t0
             probe = read_probe(page) or {}
@@ -221,9 +219,10 @@ def main():
                 lambda pr: (pr.get("last_click") or {}).get("coordinate")
                 and abs(pr["last_click"]["coordinate"][0] - (-15.0)) < 1.0,
             )
-            ok = probe is not None and abs(
-                probe["last_click"]["coordinate"][1] - (-12.0)
-            ) < 1.0
+            ok = (
+                probe is not None
+                and abs(probe["last_click"]["coordinate"][1] - (-12.0)) < 1.0
+            )
             check("camera survived layer push", ok)
 
             # --- fly-to via view_state_revision ---------------------------
@@ -247,7 +246,7 @@ def main():
             out = server.stdout.read()
             tail = "\n".join(out.strip().splitlines()[-15:])
             print("--- server tail ---\n" + tail, flush=True)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     n_fail = sum(1 for _, ok, _ in results if not ok)

@@ -1,9 +1,9 @@
 # celeri_builder
 
 - Interactive editor for [celeri](https://github.com/brendanjmeade/celeri)
-kinematic earthquake cycle model inputs
-- A Python/[Trame](https://kitware.github.io/trame/)/[deck.gl](https://deck.gl/) rewrite of
-[celeri_ui](https://github.com/brendanjmeade/celeri_ui).
+  kinematic earthquake cycle model inputs
+- A Python/[Trame](https://kitware.github.io/trame/)/[deck.gl](https://deck.gl/)
+  rewrite of [celeri_ui](https://github.com/brendanjmeade/celeri_ui).
 
 ![celeri_builder editing the Japan model](docs/screenshot.png)
 
@@ -46,7 +46,8 @@ uv run pre-commit run --all-files
 The custom deck.gl map widget ships pinned copies of deck.gl 9.3.6 (MIT) and
 MapLibre GL JS 5.24.0 (BSD-3-Clause) under
 `src/celeri_builder/widgets/module/serve/`, so the app never loads code from a
-CDN. Releases follow [conventional commits](https://www.conventionalcommits.org/).
+CDN. Releases follow
+[conventional commits](https://www.conventionalcommits.org/).
 
 ## License
 

@@ -36,7 +36,7 @@ def _format_value(value) -> str:
     """Render a field value as compact label text."""
     if isinstance(value, bool):
         return str(value)
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return f"{value:g}"
     return str(value)
 

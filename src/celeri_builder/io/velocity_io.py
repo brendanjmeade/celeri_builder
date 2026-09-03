@@ -8,31 +8,34 @@ in the row dicts so ``canonical_table`` re-emits it.
 from __future__ import annotations
 
 import io
-import pandas as pd
 from collections.abc import Sequence
+
+import pandas as pd
 
 from celeri_builder.model.schema import VELOCITY_FIELDS, read_default
 
+
 def read_velocities(text: str) -> tuple[dict, ...]:
     """Read velocity data from CSV text and return tuple of dicts."""
-    df = pd.read_csv(io.StringIO(text))
+    velocity_df = pd.read_csv(io.StringIO(text))
 
     # Fill missing values with read defaults only for existing columns
     for field in VELOCITY_FIELDS:
-        if field in df.columns:
-            df[field] = df[field].fillna(read_default)
+        if field in velocity_df.columns:
+            velocity_df[field] = velocity_df[field].fillna(read_default)
 
     # Convert to tuple of dicts
-    return tuple(df.to_dict('records'))
+    return tuple(velocity_df.to_dict("records"))
+
 
 def write_velocities(rows: Sequence[dict]) -> str:
     """Convert velocity rows to CSV text with canonical column order."""
-    df = pd.DataFrame(rows)
+    velocity_df = pd.DataFrame(rows)
 
     # Ensure canonical columns are first in the DataFrame
-    canonical_cols = [col for col in VELOCITY_FIELDS if col in df.columns]
-    other_cols = [col for col in df.columns if col not in VELOCITY_FIELDS]
-    df = df[canonical_cols + other_cols]
+    canonical_cols = [col for col in VELOCITY_FIELDS if col in velocity_df.columns]
+    other_cols = [col for col in velocity_df.columns if col not in VELOCITY_FIELDS]
+    velocity_df = velocity_df[canonical_cols + other_cols]
 
     # Convert to CSV text
-    return df.to_csv(index=False)
+    return velocity_df.to_csv(index=False)
